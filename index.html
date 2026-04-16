@@ -4,13 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Valorant · Pick rates por año</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <section class="viz-card">
-        <header class="viz-header">
-          <h1>Los 3 agentes más elegidos de Valorant por año en el competitivo.</h1>
+        <header class="viz-header centered">
+          <h1>Top 3 agentes más elegidos del VCT por año</h1>
+          <p class="viz-subtitle">
+            De acuerdo a índice de elección de agente (“pickrate”) para todos los mapas jugados en los eventos de Valorant Champions Tour 2021-2025
+          </p>
         </header>
 
         <section class="viz-main">
@@ -21,13 +26,60 @@
 
           <section class="timeline-panel" aria-labelledby="timeline-title">
             <h2 id="timeline-title" class="sr-only">Línea de tiempo</h2>
-            <div class="timeline-line" aria-hidden="true">
+
+            <div id="timelineTopNotes" class="timeline-notes timeline-notes-top" aria-hidden="true"></div>
+
+            <div id="timelineTop" class="timeline-years-top" aria-hidden="true"></div>
+
+            <div id="timelineTopConnectors" class="timeline-connectors timeline-connectors-top" aria-hidden="true"></div>
+
+            <div class="timeline-line" id="timelineLine" aria-hidden="true">
               <span class="line-core"></span>
               <span class="arrow right"></span>
+              <div id="yearNodes" class="year-nodes" aria-hidden="true"></div>
             </div>
-            <div id="yearNodes" class="year-nodes" aria-hidden="true"></div>
-            <div id="timelineYears" class="timeline-years"></div>
+
+            <div id="timelineBottomConnectors" class="timeline-connectors timeline-connectors-bottom" aria-hidden="true"></div>
+
+            <div id="timelineBottom" class="timeline-years-bottom" aria-hidden="true"></div>
+
+            <div id="timelineBottomNotes" class="timeline-notes timeline-notes-bottom" aria-hidden="true"></div>
           </section>
+        </section>
+        <!-- Info row: Top 3 Global + explanatory note -->
+        <section class="info-row">
+          <div class="top-global">
+            <h3>Top 3 Global</h3>
+            <div class="top-items">
+              <div class="top-item">
+                <img src="assets/Jett-icon.png" alt="Jett" />
+                <div class="top-meta">
+                  <div class="top-percent">41,2%</div>
+                  <div class="top-label">#1 Jett</div>
+                </div>
+              </div>
+              <div class="top-item">
+                <img src="assets/Omen-icon.png" alt="Omen" />
+                <div class="top-meta">
+                  <div class="top-percent">41,2%</div>
+                  <div class="top-label">#2 Omen</div>
+                </div>
+              </div>
+              <div class="top-item">
+                <img src="assets/Sova-icon.png" alt="Sova" />
+                <div class="top-meta">
+                  <div class="top-percent">41,2%</div>
+                  <div class="top-label">#3 Sova</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="explain-note">
+            <p>
+              La variación de pickrate se determina por los diversos parches que realiza “Riot”, con tal de balancear el juego. Esto, junto con nuevos mapas y estrategias, inflige en el porcentaje
+            </p>
+          </aside>
         </section>
       </section>
     </main>

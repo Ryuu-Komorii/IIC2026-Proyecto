@@ -3,12 +3,19 @@ const YEAR_FILES = [2021, 2022, 2023, 2024, 2025].map((year) => ({
   file: `db/agents_pick_rates_${year}.csv`,
 }));
 
+const MATCHES_FILE = "db/all_matches_games.csv";
+
 const COLORS = {
-  annual: ["#2f3643", "#374153", "#2f3643"],
+  annualBars: ["#7e232b", "#9d2e3a", "#b93945"],
   overall: ["#7e232b", "#b93945", "#fe4553"],
 };
 
-const timelineContainer = document.getElementById("timelineYears");
+const timelineTop = document.getElementById("timelineTop");
+const timelineBottom = document.getElementById("timelineBottom");
+const topConnectors = document.getElementById("timelineTopConnectors");
+const bottomConnectors = document.getElementById("timelineBottomConnectors");
+const topNotes = document.getElementById("timelineTopNotes");
+const bottomNotes = document.getElementById("timelineBottomNotes");
 const yearNodesContainer = document.getElementById("yearNodes");
 const overallContainer = document.getElementById("overallBubbles");
 
@@ -16,7 +23,12 @@ boot();
 
 async function boot() {
   try {
-    const loadedYears = (await Promise.all(YEAR_FILES.map(loadYearFile))).filter(Boolean);
+    const [loadedYearsRaw, yearlyMapCounts] = await Promise.all([
+      Promise.all(YEAR_FILES.map(loadYearFile)),
+      loadMatchCounts(MATCHES_FILE),
+    ]);
+
+    const loadedYears = loadedYearsRaw.filter(Boolean);
 
     if (!loadedYears.length) {
       throw new Error("No se pudieron cargar los CSV.");
@@ -28,10 +40,11 @@ async function boot() {
       ...overall.map((entry) => entry.average)
     );
 
-    renderTimeline(loadedYears, maxDisplayedRate);
+    renderTimeline(loadedYears, yearlyMapCounts);
     renderOverall(overall, maxDisplayedRate);
   } catch (error) {
-    timelineContainer.innerHTML = `<div class="empty-state">${error.message}<br><br>Si abriste el HTML con doble clic, prueba servir la carpeta con un servidor local.</div>`;
+    if (timelineTop) timelineTop.innerHTML = `<div class="empty-state">${error.message}<br><br>Si abriste el HTML con doble clic, prueba servir la carpeta con un servidor local.</div>`;
+    if (timelineBottom) timelineBottom.innerHTML = "";
     yearNodesContainer.innerHTML = "";
     overallContainer.innerHTML = "";
     console.error(error);
@@ -52,6 +65,30 @@ async function loadYearFile({ year, file }) {
   } catch (error) {
     console.warn(`Omitiendo ${year}:`, error.message);
     return null;
+  }
+}
+
+async function loadMatchCounts(file) {
+  try {
+    const response = await fetch(file);
+    if (!response.ok) {
+      throw new Error(`No se encontró ${file}`);
+    }
+
+    const text = await response.text();
+    const rows = parseCSV(text);
+    const counts = {};
+
+    rows.forEach((row) => {
+      const year = Number.parseInt(String(row.Year ?? "").trim(), 10);
+      if (Number.isNaN(year)) return;
+      counts[year] = (counts[year] || 0) + 1;
+    });
+
+    return counts;
+  } catch (error) {
+    console.warn("No se pudo cargar all_matches_games.csv:", error.message);
+    return {};
   }
 }
 
@@ -172,18 +209,21 @@ function aggregateOverall(years) {
     .slice(0, 3);
 }
 
-function renderTimeline(years, maxDisplayedRate) {
-  timelineContainer.innerHTML = "";
+function renderTimeline(years, yearlyMapCounts) {
+  if (timelineTop) timelineTop.innerHTML = "";
+  if (timelineBottom) timelineBottom.innerHTML = "";
+  if (topConnectors) topConnectors.innerHTML = "";
+  if (bottomConnectors) bottomConnectors.innerHTML = "";
+  if (topNotes) topNotes.innerHTML = "";
+  if (bottomNotes) bottomNotes.innerHTML = "";
   yearNodesContainer.innerHTML = "";
 
   const positions = distributePositions(years.length);
-  const centers = [50, 105, 160];
-  const aboveCenterY = -128;
-  const belowCenterY = 128;
 
   years.forEach((block, index) => {
     const isAbove = index % 2 === 1;
     const left = `${positions[index]}%`;
+    const mapCount = yearlyMapCounts[block.year] || 0;
 
     const yearNode = document.createElement("div");
     yearNode.className = "year-node";
@@ -197,35 +237,101 @@ function renderTimeline(years, maxDisplayedRate) {
     const group = document.createElement("article");
     group.className = `year-group ${isAbove ? "above" : "below"}`;
     group.style.left = left;
-    group.style.top = "50%";
 
     const stack = document.createElement("div");
-    stack.className = "bubble-stack";
+    stack.className = "bar-stack";
 
-    const orderedForDepth = [...block.topAgents].sort((a, b) => a.average - b.average);
-
-    orderedForDepth.forEach((agent) => {
-      const rank = block.topAgents.findIndex((item) => item.agent === agent.agent);
-      const size = pickRateToDiameter(agent.average, maxDisplayedRate, "annual");
-      const radius = size / 2;
-      const centerY = isAbove ? aboveCenterY : belowCenterY;
-
-      const bubble = createBubble({
+    block.topAgents.forEach((agent, rank) => {
+      const row = createRankBar({
         entry: agent,
-        size,
-        left: centers[rank] - radius,
-        top: centerY - radius,
-        color: COLORS.annual[rank % COLORS.annual.length],
-        mode: "annual",
-        zIndex: Math.round(size),
+        rank,
       });
-
-      stack.appendChild(bubble);
+      stack.appendChild(row);
     });
 
+    // create a connector element in the dedicated connector row
+    const connectorEl = document.createElement("div");
+    connectorEl.className = "year-connector-vertical";
+    connectorEl.style.left = left;
+
+    // create a meta note entry in the top/bottom notes rows
+    const metaNote = document.createElement("div");
+    metaNote.className = "year-meta-note";
+    metaNote.style.left = left;
+    metaNote.textContent = mapCount ? `Basado en ${mapCount} mapas` : "Cantidad de mapas no disponible";
+
     group.appendChild(stack);
-    timelineContainer.appendChild(group);
+
+    if (isAbove) {
+      timelineTop.appendChild(group);
+      if (topConnectors) topConnectors.appendChild(connectorEl);
+      if (topNotes) topNotes.appendChild(metaNote);
+    } else {
+      timelineBottom.appendChild(group);
+      if (bottomConnectors) bottomConnectors.appendChild(connectorEl);
+      if (bottomNotes) bottomNotes.appendChild(metaNote);
+    }
   });
+}
+
+function createRankBar({ entry, rank }) {
+  const row = document.createElement("div");
+  row.className = "rank-row";
+
+  const media = document.createElement("div");
+  media.className = "rank-media";
+
+  const img = document.createElement("img");
+  img.src = entry.asset;
+  img.alt = capitalize(entry.agent);
+  img.loading = "lazy";
+  img.className = "rank-avatar";
+
+  const fallback = document.createElement("span");
+  fallback.className = "rank-avatar-fallback";
+  fallback.textContent = initials(entry.agent);
+  fallback.style.display = "none";
+
+  img.addEventListener("error", () => {
+    img.style.display = "none";
+    fallback.style.display = "grid";
+  });
+
+  media.append(img, fallback);
+
+  const barWrap = document.createElement("div");
+  barWrap.className = "rank-bar-wrap";
+
+  const labelRow = document.createElement("div");
+  labelRow.className = "rank-label-row";
+
+  const order = document.createElement("span");
+  order.className = "rank-order";
+  order.textContent = `#${rank + 1}`;
+
+  const label = document.createElement("span");
+  label.className = "rank-agent";
+  label.textContent = capitalize(entry.agent);
+
+  labelRow.append(order, label);
+
+  const bar = document.createElement("div");
+  bar.className = "rank-bar";
+  bar.style.setProperty("--bar-color", COLORS.annualBars[rank % COLORS.annualBars.length]);
+
+  const fill = document.createElement("div");
+  fill.className = "rank-bar-fill";
+  fill.style.width = `${Math.max(0, Math.min(entry.average, 100))}%`;
+
+  const value = document.createElement("span");
+  value.className = "rank-value";
+  value.textContent = formatRate(entry.average);
+
+  bar.append(fill, value);
+  barWrap.append(labelRow, bar);
+
+  row.append(media, barWrap);
+  return row;
 }
 
 function renderOverall(entries, maxDisplayedRate) {
@@ -331,9 +437,7 @@ function parsePickRate(value) {
 }
 
 function normalizeAgentLabel(agent) {
-  return String(agent ?? "")
-    .trim()
-    .toLowerCase();
+  return String(agent ?? "").trim().toLowerCase();
 }
 
 function capitalize(text) {
